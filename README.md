@@ -10,11 +10,11 @@ Most paper trading apps fail on one of three things:
 - They only support US stocks.
 - They simulate prices instead of using real market data.
 
-StockenShares fixes all three. Trade `RELIANCE.NS` (NSE), `AAPL` (NASDAQ), `BTC-USD`, gold futures, `SAP.DE`, Toyota (Tokyo), and more, all at real prices, the moment you sign up. 35 plus assets across 8 exchanges, all free.
+StockenShares fixes all three. Trade `RELIANCE.NS` (NSE), `AAPL` (NASDAQ), `BTC-USD`, gold futures, `SAP.DE`, Toyota (Tokyo), and more, all at real prices, the moment you sign up. 37 tradable symbols across 9 markets, all free.
 
 ## Features
 
-- **Global coverage**: NSE, BSE, NASDAQ, NYSE, LSE, Frankfurt, Tokyo, Hong Kong, ASX, and TSX.
+- **Global coverage**: 9 markets, NSE, NASDAQ, NYSE, LSE, Frankfurt, Tokyo, Hong Kong, ASX, and TSX, with BSE Sensex quoted as an index.
 - **Natural language search**: type `reliance` or `crude oil` and Groq's LLaMA 3.3 resolves the exact ticker. If the AI call fails, the server falls back to suffix matching so the app never hard stops.
 - **Multi currency**: 17 live exchange rates refresh from Yahoo Finance and are cached for five minutes. All internal math runs in USD, with fallback rates baked in for API outages.
 - **Live charts**: TradingView widgets for US tickers, a custom Lightweight Charts pipeline with 20, 50, and 200 day moving average overlays for everything else (Yahoo's symbol formats do not fit TradingView outside the US).
