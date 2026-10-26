@@ -1,55 +1,57 @@
 # StockenShares
 
-A global paper trading simulator. Every user gets $10,000 virtual cash to trade real, live-priced assets across world markets. No brokerage account, no email verification, no payment info.
+**A global paper trading simulator. Every user gets $10,000 in virtual cash and trades real, live priced assets across world markets. No brokerage account, no email verification, no payment info. Live app: <https://stockenshares.onrender.com/>**
 
-**Live data. Zero cost. 35+ assets across 8 exchanges.**
-
-**Live app: https://stockenshares.onrender.com/** 
-
----
-
-## Why
+## Why it exists
 
 Most paper trading apps fail on one of three things:
-- Paywalled or require a real brokerage account
-- Only support US stocks
-- Use fake/simulated prices instead of real market data
 
-StockenShares fixes all three. Trade `RELIANCE.NS` (NSE), `AAPL` (NASDAQ), `BTC-USD`, Gold futures, `SAP.DE`, Toyota (Tokyo), and more, all at real prices, the moment you sign up.
+- They are paywalled or require a real brokerage account.
+- They only support US stocks.
+- They simulate prices instead of using real market data.
+
+StockenShares fixes all three. Trade `RELIANCE.NS` (NSE), `AAPL` (NASDAQ), `BTC-USD`, gold futures, `SAP.DE`, Toyota (Tokyo), and more, all at real prices, the moment you sign up. 35 plus assets across 8 exchanges, all free.
 
 ## Features
 
-- **Global coverage**: NSE, BSE, NASDAQ, NYSE, LSE, Frankfurt, Tokyo, HK, ASX, TSX
-- **Natural language search**: type "reliance" or "crude oil", Groq LLaMA 3.3 resolves the ticker (falls back to suffix matching if AI is down)
-- **Multi-currency**: 17 live exchange rates, all internal math in USD
-- **Dual chart engine**: TradingView widget for US stocks, custom Lightweight Charts (with MA20/50/200 overlays) for everything else
-- **Live leaderboard**: ranked by real-time portfolio return
-- **6 themes**: Raspberry, Matrix (with canvas rain animation), Terminal, Light, Pink, Red
-- **Weighted avg cost basis**: real brokerage-style gain/loss tracking
-- **Parallel ticker tape**: 14 live prices refreshed every 90s via `ThreadPoolExecutor`
+- **Global coverage**: NSE, BSE, NASDAQ, NYSE, LSE, Frankfurt, Tokyo, Hong Kong, ASX, and TSX.
+- **Natural language search**: type `reliance` or `crude oil` and Groq's LLaMA 3.3 resolves the exact ticker. If the AI call fails, the server falls back to suffix matching so the app never hard stops.
+- **Multi currency**: 17 live exchange rates refresh from Yahoo Finance and are cached for five minutes. All internal math runs in USD, with fallback rates baked in for API outages.
+- **Live charts**: TradingView widgets for US tickers, a custom Lightweight Charts pipeline with 20, 50, and 200 day moving average overlays for everything else (Yahoo's symbol formats do not fit TradingView outside the US).
+- **Parallel ticker tape**: 14 live prices refresh every 90 seconds through a thread pool, so the front page shows movement without waiting on sequential requests.
+- **Brokerage style accounting**: buys record a real weighted average cost basis, so gains and losses compute like a real brokerage would.
+- **Live leaderboard**: every portfolio revalues against current market prices on each page load, and users rank by real time return. Sessions last 30 days, no email walls.
+- **6 themes**: Raspberry, Matrix (with canvas rain animation), Terminal, Light, Pink, and Red.
 
-## Stack
+## How a trade works
 
-| Layer | Tech |
+1. You search "reliance" and the AI resolves it to `RELIANCE.NS`.
+2. The server fetches the live price and the INR per USD rate, then quotes you in your currency.
+3. You confirm the buy. The server re-fetches the live rate (no stale sellers), deducts the USD equivalent from your balance, and stores the holding plus trade history in MongoDB.
+4. As prices move, returns, gains, and the leaderboard all recompute against live quotes on every load, so nothing fakes its way upward.
+
+## The stack
+
+| Layer | Technology |
 |---|---|
-| Backend | Flask (single `app.py`) |
-| Frontend | Vanilla JS, single `index.html`, no framework |
-| Database | MongoDB Atlas (M0 free tier) |
-| Market data | yfinance + Finnhub |
+| Backend | Flask, one file (`app.py`) |
+| Frontend | Vanilla JS in one template, no framework |
+| Database | MongoDB Atlas, free tier |
+| Market data | yfinance (quotes and FX), Finnhub |
 | AI ticker resolution | Groq (LLaMA 3.3 70B) |
-| Hosting | Render (free tier) |
-
-No build tools. Clone it, `python app.py`, done.
+| Charts | TradingView widget + TradingView Lightweight Charts |
+| Session store | Flask cookies, 30 day lifetime |
+| Hosting | Render free tier |
 
 ## Setup
 
 ```bash
-git clone https://github.com/nithilan-alt-f4/StockenShares
-cd stockenshares
+git clone https://github.com/nithilan-manivannan/StockenShares
+cd StockenShares
 pip install -r requirements.txt
 ```
 
-Create a `.env` (or set these in your host's dashboard):
+Create a `.env` (or set these in your host dashboard):
 
 ```
 GROQ_API_KEY=
@@ -58,21 +60,39 @@ MONGO_URI=
 SECRET_KEY=
 ```
 
+Then run it:
+
 ```bash
 python app.py
 ```
 
-## How a trade works
+Deploy as is to Render with the `Procfile`, or to any host that runs Flask apps.
 
-1. User searches "reliance", Groq resolves it to `RELIANCE.NS`
-2. Server fetches live price and INR/USD rate from Yahoo Finance
-3. User confirms buy, server re-fetches rate, deducts USD-equivalent cash, saves holding and trade history to MongoDB
-4. Portfolio/leaderboard re-fetch live prices on every load, so numbers are always current
+## What happens under the hood
+
+- Quotes and FX rates come straight from Yahoo Finance through yfinance; FX uses the proper normalizations for EUR, GBP, AUD, CAD, and CHF pairs, whose Yahoo tickers quote USD per unit rather than units per USD.
+- Buy and sell flows re-fetch live prices at execution time, so the price you see is the price you pay.
+- All holdings store cost basis per share, and returns derive from that rather than naive shares times price.
+- Currency conversion is applied once at the trade boundary, keeping the rest of the app in USD units, which keeps multi currency math honest and simple.
 
 ## Known limitations
 
-- Passwords stored in plaintext (fine for a demo, not production)
-- Leaderboard re-fetches live prices per user per load, won't scale past a few hundred users without a caching layer
-- Render free tier cold-starts (20 to 40s) after 15 min idle
-- TradingView charts only work for US tickers (format mismatch with Yahoo's `.NS`/`.BO`/`^` symbols, solved via a separate Lightweight Charts pipeline for everything non-US)
-- Flask sessions are cookie-based, won't survive multi-instance load balancing without Redis
+Honest to list them:
+
+- Passwords are stored as plaintext. Fine for a demo, not for production.
+- The leaderboard re-fetches live quotes per user per page load; it stops being practical past a few hundred users without a caching layer.
+- Render's free tier cold-starts after 15 minutes idle, so the first page load can take 20 to 40 seconds.
+- TradingView charts only work for US tickers. Non-US symbols rely on the custom chart pipeline instead (by design).
+- Flask sessions are cookie based and will not survive multi instance load balancing without Redis.
+- Market data depends on Yahoo's availability and their symbol universe, so some exotic instruments may quote stale or nothing at all.
+
+## Repository structure
+
+```
+StockenShares/
+├── app.py                # the whole backend: auth, quotes, trades, leaderboard
+├── templates/index.html  # the whole frontend: dashboard, search, charts
+├── requirements.txt      # Flask, requests, yfinance, OpenAI, pymongo
+├── Procfile              # Render entrypoint
+└── README.md
+```
